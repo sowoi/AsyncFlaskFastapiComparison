@@ -12,17 +12,33 @@
     </script>
 </head>
 <body>
-    <h3>{{ stepdescription }}</h3>
-    <br>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        <ul class=flashes>
-        {% for message in messages %}
-            <h2>{{ message | safe}}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-    {% endwith %}
+    <div class="row">
+        <div class="col-sm-6">
+          <div class="card" style="margin-top: 20px;">
+            <div class="card-header"><h3>{{ stepdescription }}</h3></div>
+
+            <div class="card-body">
+              <p class="card-text">    {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <ul class=flashes>
+                    {% for message in messages %}
+                        {{ message | safe}}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+                {% endwith %}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="card" style="margin-top: 40px;">
+            <div class="card-body">
+              <a href="{{ url_for('index') }}" class="btn btn-primary  d-block mb-2">Zurück zur Hauptseite</a>
+              <a href="{{ url_for('abort_process', filename=filename) }}"  class="btn btn-danger  d-block mb-2">Abbrechen</a>
+            </div>
+          </div>
+        </div>
+      </div>
 </body>
 </html>
 </div>

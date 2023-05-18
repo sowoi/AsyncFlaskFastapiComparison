@@ -68,6 +68,7 @@ def upload():
                     break
                 f.write(chunk)
         return jsonify({'redirect_url': url_for('ffmpeg_process', filename=filename)}), 200
+    
     else:
         return {'error': 'No file uploaded'}, 400
 
@@ -104,13 +105,15 @@ def index():
                 uuid_dict[uuid_name] = {"temp": 0, "thumbs": 1}
             else:
                 uuid_dict[uuid_name]["thumbs"] += 1
-    api_url = config['FLOWER_API_URL']
+    api_url = config['FLOWER_API_URL']+"/api/tasks"
     response = requests.get(api_url)
     if response.status_code == 200:
         task_data = response.json()
-        #task_dict = json.loads(task_data)
         running_tasks = task_data
-    return render_template('index.html', uuid_dict=uuid_dict, running_tasks=running_tasks)
+        flower_url = config['FLOWER_API_URL']
+    else:
+        running_task = None
+    return render_template('index.html', uuid_dict=uuid_dict, running_tasks=running_tasks, flower_url=flower_url)
 
 
 @app.route('/ffmpeg_process/<filename>', methods=['GET', 'POST'])
@@ -148,7 +151,8 @@ def choose_thumbnail(filename):
     """Reads the created thumbnails and renders them."""
     thumnbail_filenames = session.get('thumnbail_filenames', None)
     filenames = thumnbail_filenames.split(',')
-    video_filename = filename
+    select_thumbnail_task.delay(filename, filenames)
+
     return render_template('choose_thumbnail.html', filenames=filenames, filename=filename)
 
 @app.route('/select_thumbnail/<filename>')
@@ -174,7 +178,6 @@ def select_thumbnail(filename):
             print(f"Error: {e.stderr.decode()}")    
             print("converted file to smaller size")           
     flash('Im nächsten Schritt gibst du Videobeschreibung und Videodatum an.')
-    select_thumbnail_task.delay(filename)
     return render_template('transition.html', filename=filename, stepdescription="Schritt 5 von 7: Metadaten übermitteln", redirect_url=url_for('add_meta', filename=filename))
     
 
@@ -203,9 +206,8 @@ def add_meta(filename):
         else:
             session['video_date'] = datetime.today().strftime('%Y-%m-%d')
         flash('Im nächsten Schritt gibst du die Kategorien an.')
-        add_meta_task.delay(filename, slug_output_filename, video_date)
         return render_template('transition.html', filename=filename, stepdescription="Schritt 6 von 7: Kategorien auwählen", redirect_url=url_for('select_categories', filename=filename))
-    
+    add_meta_task.delay(filename)
     return render_template('add_meta.html',today=today)
      
             
@@ -223,8 +225,8 @@ def select_categories(filename):
         selected_categories = request.form.getlist('categories')
         session['selected_categories'] = selected_categories
         flash('Jetzt wird alles im Hintergrund erledigt.')
-        select_categories_task.delay(filename, selected_categories)
         return render_template('transition.html', filename=filename, stepdescription="Schritt 7 von 7: An Wordpress übermitteln", redirect_url=url_for('background_process', filename=filename))
+    select_categories_task.delay(filename)
     return render_template('select_categories.html', categories=categories, current_year=current_year)
     
 @app.route('/background_process/<filename>')
@@ -247,9 +249,22 @@ def status_message(filename):
     background_tasks_finished_id = session.get('background_tasks_finished_id', None)
     background_tasks_finished_state = AsyncResult(background_tasks_finished_id, app=celery)
     if background_tasks_finished_state.status == 'SUCCESS':
-        return render_template('send_to_wordpress.html', filename=filename, message="Video send to Wordpress successfully.")
+        return render_template('send_to_wordpress.html', filename=filename, message="Video erfolgreich gesendet.")
     else:
-        return render_template('send_to_wordpress.html', filename=filename, message="Video is still processing.")
+        return render_template('send_to_wordpress.html', filename=filename, message="Video ist noch in Arbeit.")
+    
+@app.route('/abort_process/<filename>')
+def abort_process(filename):
+    """ Abort process. """
+    result = abort_all.delay(filename)
+    abort_all_id = result.id
+
+    abort_all_state = AsyncResult(abort_all_id, app=celery)
+    abort_all_state.get()
+    if abort_all_state.status == 'SUCCESS':
+        return render_template('send_to_wordpress.html', filename=filename, message="Alle Prozesse gestoppt")
+    else:
+        return render_template('send_to_wordpress.html', filename=filename, message="Etwas ist schief gelaufen.")
 
 
 @app.route('/uploads/<filename>')
@@ -399,7 +414,7 @@ def add_meta_task(filename):
   
     
 @celery.task
-def select_thumbnail_task(filename):
+def select_thumbnail_task(filename, filenames):
     """ Just a state task for logging in RabbitMQ. """
     logging.info("Select thumbnail task finished")
     select_categories_task.filename = filename
@@ -411,6 +426,18 @@ def select_categories_task(filename):
     logging.info("Select categories task finished")
     select_categories_task.filename = filename
  
+@celery.task
+def abort_all(filename):
+    try:
+        for files in os.listdir(UPLOAD_FOLDER):
+            if filename in files:
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                # Die Datei löschen
+                os.remove(file_path)
+                logging.info(f'Deleted file: {file_path}')
+    except Exception as e:
+        logging.error(f'Error occurred: {e}')
+
  
 if __name__ == "__main__":
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)

@@ -2,15 +2,64 @@
 
 {% block content %}
 <div class="container">
-    <p>Select a thumbnail:</p>
+    <p>Wähle ein Thumbnail:</p>
     <div class="row justify-content-center">
         {% for thumbnail in filenames %}
-        <div class="col-4">
-            <a href="{{ url_for('select_thumbnail', filename=filename, thumbnail=thumbnail) }}">
-                <img src="{{ url_for('send_file', filename=thumbnail) }}" class="img-fluid">
-            </a>
+        <div class="col-4 mb-4">
+            <div class="card img-container">
+                <a href="{{ url_for('select_thumbnail', filename=filename, thumbnail=thumbnail) }}">
+                    <img src="{{ url_for('send_file', filename=thumbnail) }}" class="card-img-top img-fluid">
+                    <div class="overlay">
+                        <div class="text">Auswählen</div>
+                    </div>
+                </a>
+            </div>
         </div>
         {% endfor %}
     </div>
 </div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    $('.card-img-top').hover(function(){
+        $(this).css("opacity", "0.7");
+    }, function(){
+        $(this).css("opacity", "1");
+    });
+});
+</script>
+<style>
+.img-container {
+    position: relative;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+    transition: .5s ease;
+    background-color: #008CBA;
+}
+
+.img-container:hover .overlay {
+    opacity: 0.7;
+}
+
+.text {
+    color: white;
+    font-size: 20px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    text-align: center;
+}
+</style>
+
 {% endblock content %}
