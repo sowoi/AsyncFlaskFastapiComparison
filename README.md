@@ -23,15 +23,15 @@ To install Flask Video Upload, follow these steps:
 
 1. Clone the repository:
 
-     git clone https://github.com/sowoi/flaskcelery.git
+     `git clone https://github.com/sowoi/flaskcelery.git`
 
 2. Change into the project directory:
 
-      cd flaskcelery
+      `cd flaskcelery`
 
 3. Install the dependencies:
   
-      poetry install
+      `poetry install
 
 
 4. Create Systemd Unite files for each process:
