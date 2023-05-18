@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data">
+    <h4 style="color: red;">Dies ist der Text der unter dem Video steht.</h4>
+    <h4 style="color: red;">Halt dich kurz!</h4>
+    <div class="form-group">
+        <label for="summary">Videobeschreibung</label>
+        <input type="text" name="summary" placeholder="Videobeschreibung" class="form-control" id="summary">
+    </div>
+    <div class="form-group">
+        <h4 style="color: red;">Wähle das Datum für die Veröffentlichung des Videos.</h4>
+        <label for="date">Veröffentlichungsdatum</label>
+        <input type="date" name="date" class="form-control" id="date" value="{{ today }}">
+    </div>
+    {% if error_message %}
+    <div class="alert alert-danger" role="alert">
+        {{ error_message }}
+    </div>
+    {% endif %}
+    <input type="submit" class="btn btn-primary" value="Submit">
+</div>
+</form>
+{% endblock content %} 

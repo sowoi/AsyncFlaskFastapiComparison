@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+
+
+{% block content %}
+<form id="upload_form" method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}">
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="row justify g-2">
+                <div class="card" style="width: auto;">
+                    <div class="card-body" style="width: auto;">
+                        <h5 class="card-title">Schritt 1 von 7: Upload der Videodatei</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">Bitte hab Geduld. Schließe oder aktualisiere dieses Fenster nicht bis der Upload fertig ist!</h6>
+                        <div class="form-group">
+                            <h6 class="card-subtitle mb-2">Wähle das Video, das hochgeladen und umgewandelt werden soll.</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card" style="margin-top: 40px;">
+            <input type="file" name="video" class="form-control-file" id="video" style="display: none;">
+            <label class="btn btn-primary" for="video">Durchsuchen</label>
+            <input type="submit" class="btn btn-primary" value="Hochladen">         
+         </div>
+        </div>
+      </div>
+      
+
+    <div class="form-group" style="margin-top: 20px;">
+        <div id="progress_bar" style="display: none; width: 100%; background: #f3f3f3; border: 1px solid #ccc;">
+            <div style="width: 0%; height: 20px; background: #39c987;"></div>
+        </div>
+        <br>
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ error_message }}
+        </div>
+        {% endif %}
+        <br>
+
+
+    </div>
+    {% for uuid_name, file_types in uuid_dict.items() %}
+    {% if file_types.temp > 0 and file_types.thumbs > 1 %}
+        <p>Weiter machen bei: <a href="/choose_thumbnail/{{ uuid_name }}">{{ uuid_name }}</a></p>
+    {% elif file_types.temp > 0 and file_types.thumbs == 1 %}
+        <p>Weiter machen bei:<a href="/add_meta/{{ uuid_name }}">{{ uuid_name }}</a></p>
+    {% endif %}
+    {% endfor %}
+</form>
+<div class="row align-items-center justify-content-center g-4">
+    {% for task_id, task_info in running_tasks.items() %}
+        {% set task_uuid = task_info['uuid'] %}
+        {% set task_name = task_info['name'] %}
+        {% set task_state = task_info['state'] %}
+
+        {% if loop.index <= 12 %}
+            {% if loop.index % 3 == 1 %}
+               </div><div class="row">
+            {% endif %}
+            <div class="col">
+                {% set status_class = '' %}
+                {% set color = '' %}
+                {% if task_state == 'STARTED' %}
+                    {% set status_class = 'card-started' %}
+                    {% set color = '#5D9CEC' %}
+                {% elif task_state == 'RECEIVED' %}
+                    {% set status_class = 'card-started' %}
+                    {% set color = '#656D78' %}
+                {% elif task_state == 'SUCCESS' %}
+                    {% set status_class = 'card-success' %}
+                    {% set color = '#46B446' %}
+                {% elif task_state == 'FAILURE' %}
+                    {% set status_class = 'card-failure' %}
+                    {% set color = '#ED5565' %}
+                {% elif task_state == 'PENDING' %}
+                    {% set status_class = 'card-pending' %}
+                    {% set color = '#AAB2BD' %}
+                {% endif %}
+
+                <div class="card {{ status_class }}" style="width: auto; background-color: {{ color }}; margin-bottom: 10px;">
+                    <ul class="list-group list-group-flush">
+                        <div class="card-header"><h4>Task ID: {{ task_id }}</h4></div>
+                        <li class="list-group-item"><p>UUID: {{ task_uuid }}</p></li>
+                        <li class="list-group-item"><p>Name: {{ task_name }}</p></li>
+                        <li class="list-group-item"><p>Status: {{ task_state }}</p></li>
+                    </ul>
+                </div>
+            </div>
+ 
+        {% endif %}
+    {% endfor %}
+</div>
+
+
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    $('#upload_form').on('submit', function(e){
+        e.preventDefault();
+        $.ajax({
+            xhr: function() {
+                var xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener("progress", function(evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = ((evt.loaded / evt.total) * 100);
+                        $('#progress_bar > div').width(percentComplete + '%');
+                    }
+               }, false);
+               return xhr;
+            },
+            type: 'POST',
+            url: '/upload',
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData:false,
+            beforeSend: function(){
+                $('#progress_bar').show();
+                $('#progress_bar > div').width('0%');
+            },
+            success: function(response){
+                 window.location.href = response.redirect_url;
+            }
+
+        });
+    });
+});
+</script>
+{% endblock content %}

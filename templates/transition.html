@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+<head>
+    <meta charset="UTF-8">
+    <title>Übergangsseite</title>
+    <script>
+        setTimeout(function(){
+            window.location.href = "{{ redirect_url }}";
+        }, 1000);  // 
+    </script>
+</head>
+<body>
+    <h3>{{ stepdescription }}</h3>
+    <br>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <ul class=flashes>
+        {% for message in messages %}
+            <h2>{{ message | safe}}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+    {% endwith %}
+</body>
+</html>
+</div>
+{% endblock content %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data">
+    <h4 style="color: red;"">Das sind die Kategorien. Wähle Kategorien, die dem Video entsprechen, z.B. Liz oder Luis.</h4>
+    <h4>Das aktuelle Jahr ist immer ausgewählt.</h4>
+    <div class="form-group">
+        <label>Kategorien</label><br>
+        <div class="row">
+            {% for category in categories %}
+            {% if loop.index0 % 15 == 0 %}
+            <div class="col">
+            {% endif %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="categories" value="{{ category['id'] }}" id="category{{ loop.index }}" {{ 'checked' if current_year in category['name'] }}>
+                    <label class="form-check-label" for="category{{ loop.index }}">
+                        {{ category['name'] }}
+                    </label>
+                </div>
+            {% if loop.index0 % 15 == 14 or loop.last %}
+            </div>  <!-- End of column -->
+            {% endif %}
+            {% endfor %}
+        </div>  <!-- End of row -->
+    </div>
+<div class="form-group">
+    {% if error_message %}
+    <div class="alert alert-danger" role="alert">
+        {{ error_message }}
+    </div>
+    {% endif %}
+    <input type="submit" class="btn btn-primary" value="Submit">
+</div>
+</form>
+{% endblock content %} 
