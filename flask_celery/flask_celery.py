@@ -70,8 +70,9 @@ def upload():
                 if len(chunk) == 0:
                     break
                 f.write(chunk)
-        return jsonify({'redirect_url': url_for('ffmpeg_process', filename=filename)}), 200
-    
+        return jsonify({'redirect_url': url_for(
+            'ffmpeg_process', filename=filename)}), 200
+
     else:
         return {'error': 'No file uploaded'}, 400
 
@@ -81,7 +82,7 @@ def index():
     """Handle the index page."""
     uuid_dict = {}
     if request.method == 'POST':
-        filesDict = request.files.to_dict()
+        request.files.to_dict()
         file = request.files['video']
         if not file:
             error_message = "Bitte gib ein Video an!"
@@ -91,7 +92,8 @@ def index():
         session['video_filename'] = filename
         flash('Upload vollständig!')
         flash('Im nächsten Schritt wird umgewandelt!')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 2 von 7: Video umwandeln", redirect_url=url_for('ffmpeg_process', filename=filename))
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 2 von 7: Video umwandeln",
+                               redirect_url=url_for('ffmpeg_process', filename=filename))
     for filename in os.listdir(UPLOAD_FOLDER):
         match_temp = re.match(r"(.*)-temp\.mp4", filename)
         if match_temp:
@@ -108,14 +110,15 @@ def index():
                 uuid_dict[uuid_name] = {"temp": 0, "thumbs": 1}
             else:
                 uuid_dict[uuid_name]["thumbs"] += 1
-    api_url = config['FLOWER_API_URL']+"/api/tasks"
+    api_url = config['FLOWER_API_URL'] + "/api/tasks"
     response = requests.get(api_url)
     if response.status_code == 200:
         running_tasks = task_checks_with_flower()
         flower_url = config['FLOWER_API_URL']
     else:
-        running_task = None
-    return render_template('index.html', uuid_dict=uuid_dict, running_tasks=running_tasks, flower_url=flower_url)
+        running_tasks = None
+    return render_template('index.html', uuid_dict=uuid_dict,
+                           running_tasks=running_tasks, flower_url=flower_url)
 
 
 @app.route('/ffmpeg_process/<filename>', methods=['GET', 'POST'])
@@ -129,17 +132,19 @@ def ffmpeg_process(filename):
     session['video_transform_task_id'] = video_transform_task_id
     flash('Umwandlung wird im Hintergrund weitererledigt!')
     flash('Im nächsten Schritt werden die Thumbnails erstellt.')
-    return render_template('transition.html', filename=filename, stepdescription="Schritt 3 von 7: Thumbnails erstellen", redirect_url=url_for('create_thumbnail', filename=filename))
+    return render_template('transition.html', filename=filename, stepdescription="Schritt 3 von 7: Thumbnails erstellen",
+                           redirect_url=url_for('create_thumbnail', filename=filename))
 
-    
+
 @app.route('/create_thumbnail/<filename>', methods=['GET', 'POST'])
 def create_thumbnail(filename):
     """Handle the creation of thumbnails for the video."""
     logging.info("creating thumbnails...")
     thumbnail_filenames = []
 
-    futures = [create_single_thumbnail.delay(i, filename) for i in range(THUMBNAIL_COUNT)]
-  
+    futures = [create_single_thumbnail.delay(
+        i, filename) for i in range(THUMBNAIL_COUNT)]
+
     for future in futures:
         input_file = os.path.join(app.config['UPLOAD_FOLDER'], future.get())
         output_file = os.path.join(app.config['UPLOAD_FOLDER'], future.get())
@@ -147,13 +152,13 @@ def create_thumbnail(filename):
         quality = 80
         image = Image.open(input_file)
         image.thumbnail(max_size, Image.LANCZOS)
-        image.save(output_file, quality=quality)  
+        image.save(output_file, quality=quality)
         thumbnail_filenames.append(future.get())
-            
 
     session['thumnbail_filenames'] = ','.join(thumbnail_filenames)
     flash('Im nächsten Schritt wählst du ein Thumbnail aus.')
-    return render_template('transition.html', filename=filename, stepdescription="Schritt 4 von 7: Thumbnail auswählen", redirect_url=url_for('choose_thumbnail', filename=filename))
+    return render_template('transition.html', filename=filename, stepdescription="Schritt 4 von 7: Thumbnail auswählen",
+                           redirect_url=url_for('choose_thumbnail', filename=filename))
 
 
 @app.route('/choose_thumbnail/<filename>', methods=['GET', 'POST'])
@@ -163,23 +168,27 @@ def choose_thumbnail(filename):
     filenames = thumnbail_filenames.split(',')
     select_thumbnail_task.delay(filename, filenames)
 
-    return render_template('choose_thumbnail.html', filenames=filenames, filename=filename)
+    return render_template('choose_thumbnail.html',
+                           filenames=filenames, filename=filename)
+
 
 @app.route('/select_thumbnail/<filename>')
 def select_thumbnail(filename):
     """Thumbnail selection. The rest will be deleted."""
     thumbnail_filename = request.args.get('thumbnail')
-    session['thumbnail_filename']  = thumbnail_filename
- 
+    session['thumbnail_filename'] = thumbnail_filename
+
     # Delete other thumbnails
     for file in os.listdir(app.config['UPLOAD_FOLDER']):
-        if file.startswith('thumbnail_') and file != thumbnail_filename and filename in file:
+        if file.startswith(
+                'thumbnail_') and file != thumbnail_filename and filename in file:
             logging.info(f"deleted thumbnail {file}")
             os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file))
-                    
+
     flash('Im nächsten Schritt gibst du Videobeschreibung und Videodatum an.')
-    return render_template('transition.html', filename=filename, stepdescription="Schritt 5 von 7: Metadaten übermitteln", redirect_url=url_for('add_meta', filename=filename))
-    
+    return render_template('transition.html', filename=filename,
+                           stepdescription="Schritt 5 von 7: Metadaten übermitteln", redirect_url=url_for('add_meta', filename=filename))
+
 
 @app.route('/add_meta/<filename>', methods=['GET', 'POST'])
 def add_meta(filename):
@@ -187,48 +196,53 @@ def add_meta(filename):
     today = date.today().strftime('%Y-%m-%d')
     if request.method == 'POST':
         summary = request.form.get('summary')
-        session['summary'] = summary    
+        session['summary'] = summary
         video_date = request.form.get('date')
         if not summary:
             error_message = "Bitte gib  eine Videobeschreibung ein."
-            return render_template('add_meta.html', categories=categories, current_year=current_year, error_message=error_message, filename=filename)
+            return render_template(
+                'add_meta.html', error_message=error_message, filename=filename)
 
-
-        # Generate filename from selected date if provided, otherwise use current date
+        # Generate filename from selected date if provided, otherwise use
+        # current date
         date_for_filename = video_date if video_date else datetime.today().strftime('%y-%m-%d')
         summary = unidecode(summary)
         summary_slug = summary.lower().replace(' ', '-')
         slug_output_filename = f"{date_for_filename}-{summary_slug}.mp4"
         session['slug_video_name'] = slug_output_filename
-        
+
         if video_date:
             session['video_date'] = video_date
         else:
             session['video_date'] = datetime.today().strftime('%Y-%m-%d')
         flash('Im nächsten Schritt gibst du die Kategorien an.')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 6 von 7: Kategorien auwählen", redirect_url=url_for('select_categories', filename=filename))
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 6 von 7: Kategorien auwählen",
+                               redirect_url=url_for('select_categories', filename=filename))
     add_meta_task.delay(filename)
-    return render_template('add_meta.html',today=today)
-     
-            
+    return render_template('add_meta.html', today=today)
+
+
 @app.route('/select_categories/<filename>', methods=['GET', 'POST'])
 def select_categories(filename):
     """ User input for wordpress categories. """
     username = config['WORDPRESS_USERNAME']
     password = config['WORDPRESS_PASSWORD']
-    url = config['WORDPRESS_URL']+'/wp-json/wp/v2/categories?per_page=100'
+    url = config['WORDPRESS_URL'] + '/wp-json/wp/v2/categories?per_page=100'
     current_year = str(datetime.now().year)
     response = requests.get(url, auth=(username, password))
     categories = response.json()
-    
+
     if request.method == 'POST':
         selected_categories = request.form.getlist('categories')
         session['selected_categories'] = selected_categories
         flash('Jetzt wird alles im Hintergrund erledigt.')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 7 von 7: An Wordpress übermitteln", redirect_url=url_for('background_process', filename=filename))
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 7 von 7: An Wordpress übermitteln",
+                               redirect_url=url_for('background_process', filename=filename))
     select_categories_task.delay(filename)
-    return render_template('select_categories.html', categories=categories, current_year=current_year, filename=filename)
-    
+    return render_template('select_categories.html', categories=categories,
+                           current_year=current_year, filename=filename)
+
+
 @app.route('/background_process/<filename>')
 def background_process(filename):
     """ Background processes handled be celary """
@@ -239,20 +253,33 @@ def background_process(filename):
     summary = session.get('summary', None)
     categories = session.get('selected_categories', None)
     video_date = session.get('video_date', None)
-    background_process_handler(filename, temp_video_filename,video_transform_task_id, slug_video_filename, thumbnail_file, summary, categories, video_date)
+    background_process_handler(
+        filename,
+        temp_video_filename,
+        video_transform_task_id,
+        slug_video_filename,
+        thumbnail_file,
+        summary,
+        categories,
+        video_date)
     return redirect(url_for('status_message', filename=filename))
 
 
 @app.route('/status_message/<filename>')
 def status_message(filename):
     """ Checks if the last task is finished. """
-    background_tasks_finished_id = session.get('background_tasks_finished_id', None)
-    background_tasks_finished_state = AsyncResult(background_tasks_finished_id, app=celery)
+    background_tasks_finished_id = session.get(
+        'background_tasks_finished_id', None)
+    background_tasks_finished_state = AsyncResult(
+        background_tasks_finished_id, app=celery)
     if background_tasks_finished_state.status == 'SUCCESS':
-        return render_template('send_to_wordpress.html', filename=filename, message="Video erfolgreich gesendet.")
+        return render_template(
+            'send_to_wordpress.html', filename=filename, message="Video erfolgreich gesendet.")
     else:
-        return render_template('send_to_wordpress.html', filename=filename, message="Video ist noch in Arbeit.")
-    
+        return render_template(
+            'send_to_wordpress.html', filename=filename, message="Video ist noch in Arbeit.")
+
+
 @app.route('/abort_process/<filename>')
 def abort_process(filename):
     """ Abort process. """
@@ -262,9 +289,11 @@ def abort_process(filename):
     abort_all_state = AsyncResult(abort_all_id, app=celery)
     abort_all_state.get()
     if abort_all_state.status == 'SUCCESS':
-        return render_template('send_to_wordpress.html', filename=filename, message="Alle Prozesse gestoppt")
+        return render_template(
+            'send_to_wordpress.html', filename=filename, message="Alle Prozesse gestoppt")
     else:
-        return render_template('send_to_wordpress.html', filename=filename, message="Etwas ist schief gelaufen.")
+        return render_template(
+            'send_to_wordpress.html', filename=filename, message="Etwas ist schief gelaufen.")
 
 
 @app.route('/uploads/<filename>')
@@ -278,10 +307,8 @@ def page_not_found(e):
 
 
 @app.errorhandler(500)
-def page_not_found(e):
-    return render_template('404.html'), 500
-
-  
+def server_error(e):
+    return render_template('500.html'), 500
 
 
 def group_tasks_by_uuid():
@@ -300,7 +327,7 @@ def group_tasks_by_uuid():
                 tasks_by_uuid[task_uuid].append(task['name'])
                 tasks_by_uuid[task_uuid].append(task['uuid'])
 
-        except:
+        except BaseException:
             task_uuid = tuple_values[1]
             if len(task_uuid) == 36:
                 tasks_by_uuid[task_uuid].append(task['state'])
@@ -308,34 +335,53 @@ def group_tasks_by_uuid():
                 tasks_by_uuid[task_uuid].append(task['uuid'])
 
     return tasks_by_uuid
-   
+
+
 def task_checks_with_flower():
-    
+
     tasks_by_uuid = group_tasks_by_uuid()
     tasks_result = {}
 
     for task_uuid, tasks in tasks_by_uuid.items():
-        status_priority = ['SUCCESS', 'STARTED', 'RECEIVED', 'REVOKED', 'PENDING', 'RETRY', 'FAILURE']
+        status_priority = [
+            'SUCCESS',
+            'STARTED',
+            'RECEIVED',
+            'REVOKED',
+            'PENDING',
+            'RETRY',
+            'FAILURE']
 
         for status in status_priority:
             if status in tasks:
                 index = tasks.index(status)
-                name = tasks[index +1]
+                name = tasks[index + 1]
                 overall_status = status
                 if overall_status == "SUCCESS":
                     logging.info(f"{task_uuid}: Alle Aufgaben erfolgreich.")
                     tasks_result[task_uuid] = "SUCCESS", "Alle Aufgaben erfolgreich"
                 else:
-                    logging.info(f"{task_uuid}: {overall_status} bei Aufgabe: {name}")
+                    logging.info(
+                        f"{task_uuid}: {overall_status} bei Aufgabe: {name}")
                     tasks_result[task_uuid] = f"{overall_status}", f"{name}"
     return tasks_result
 
-def background_process_handler(filename, temp_video_filename,video_transform_task_id, slug_video_filename, thumbnail_file, summary, categories, video_date):
-    video_transform_task_state = AsyncResult(video_transform_task_id, app=celery)
-    video_transform_task_state.get() 
+
+def background_process_handler(filename, temp_video_filename, video_transform_task_id,
+                               slug_video_filename, thumbnail_file, summary, categories, video_date):
+    video_transform_task_state = AsyncResult(
+        video_transform_task_id, app=celery)
+    video_transform_task_state.get()
     os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))  #
     # rename temp video filename to slug video filename
-    command = ['mv', os.path.join(app.config['UPLOAD_FOLDER'], temp_video_filename), os.path.join(app.config['UPLOAD_FOLDER'], slug_video_filename)]
+    command = [
+        'mv',
+        os.path.join(
+            app.config['UPLOAD_FOLDER'],
+            temp_video_filename),
+        os.path.join(
+            app.config['UPLOAD_FOLDER'],
+            slug_video_filename)]
     subprocess.run(command, check=True)
 
     result = ftp_upload.delay(slug_video_filename, filename)
@@ -343,24 +389,33 @@ def background_process_handler(filename, temp_video_filename,video_transform_tas
 
     ftp_upload_task_state = AsyncResult(ftp_upload_task_id, app=celery)
     ftp_upload_task_state.get()
-    
+
     current_time = datetime.now().strftime('T%H:%M:%S')
     video_date = video_date + current_time
-    
-    result = send_to_wordpress.delay(slug_video_filename, thumbnail_file, summary, categories, video_date, filename)
+
+    result = send_to_wordpress.delay(
+        slug_video_filename,
+        thumbnail_file,
+        summary,
+        categories,
+        video_date,
+        filename)
     send_to_wordpress_task_id = result.id
 
-    send_to_wordpress_task_state = AsyncResult(send_to_wordpress_task_id, app=celery)
+    send_to_wordpress_task_state = AsyncResult(
+        send_to_wordpress_task_id, app=celery)
     send_to_wordpress_task_state.get()
-    
-    result = delete_redundant_files.delay(slug_video_filename, thumbnail_file, filename)
+
+    result = delete_redundant_files.delay(
+        slug_video_filename, thumbnail_file, filename)
     delete_redundant_files_task_id = result.id
-    delete_redundant_files_task_state = AsyncResult(delete_redundant_files_task_id, app=celery)
+    delete_redundant_files_task_state = AsyncResult(
+        delete_redundant_files_task_id, app=celery)
     delete_redundant_files_task_state.get()
-    
+
     result = background_tasks_finished.delay(filename)
     background_tasks_finished_id = result.id
-    session['background_tasks_finished_id'] = background_tasks_finished_id   
+    session['background_tasks_finished_id'] = background_tasks_finished_id
 
     return True
 
@@ -372,21 +427,21 @@ def create_single_thumbnail(i, filename):
     timestamp = str(random.randint(1, 10))
     input_file = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     output_file = os.path.join(app.config['UPLOAD_FOLDER'], thumbnail_filename)
-    FFmpeg().option("y").input(input_file).output(output_file, ss=timestamp,vframes=1).execute()
+    FFmpeg().option("y").input(input_file).output(
+        output_file, ss=timestamp, vframes=1).execute()
     create_single_thumbnail.filename = filename
     return thumbnail_filename
 
 
 @celery.task
-def transform_video(filename, output_filename): 
-        """ Transforms video to Web viewable output. """
-        logging.info("Video processing started")
-        input_file = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        output_file = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-        FFmpeg().option("y").input(input_file).output(output_file, {"codec:v": "libx264"}, crf=29, movflags='faststart', map_metadata=0).execute()
-        transform_video.filename = filename
-
-    
+def transform_video(filename, output_filename):
+    """ Transforms video to Web viewable output. """
+    logging.info("Video processing started")
+    input_file = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    output_file = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+    FFmpeg().option("y").input(input_file).output(output_file, {
+        "codec:v": "libx264"}, crf=29, movflags='faststart', map_metadata=0).execute()
+    transform_video.filename = filename
 
 
 @celery.task
@@ -399,20 +454,27 @@ def ftp_upload(video_filename, filename):
         ftp.storbinary('STOR ' + video_filename, f)
     ftp.quit()
     ftp_upload.filename = filename
-  
-       
+
+
 @celery.task
-def send_to_wordpress(slug_video_filename, thumbnail_file, summary, categories, video_date, filename):
+def send_to_wordpress(slug_video_filename, thumbnail_file,
+                      summary, categories, video_date, filename):
     """ Posts Wordpress post. """
     url = config['WORDPRESS_URL']
     username = config['WORDPRESS_USERNAME']
     password = config['WORDPRESS_PASSWORD']
 
-    data = open(os.path.join(app.config['UPLOAD_FOLDER'], thumbnail_file), 'rb').read()
-    response = requests.post(url=url+"/wp-json/wp/v2/media",
-                    data=data,
-                    headers={'Content-Type': '', 'Content-Disposition': 'attachment; filename={}'.format(thumbnail_file)},
-                    auth=(username, password))
+    data = open(
+        os.path.join(
+            app.config['UPLOAD_FOLDER'],
+            thumbnail_file),
+        'rb').read()
+    response = requests.post(url=url + "/wp-json/wp/v2/media",
+                             data=data,
+                             headers={
+                                 'Content-Type': '',
+                                 'Content-Disposition': 'attachment; filename={}'.format(thumbnail_file)},
+                             auth=(username, password))
     response_json = response.json()
     thumbnail_id = response_json['id']
     logging.info(thumbnail_id)
@@ -439,14 +501,14 @@ def send_to_wordpress(slug_video_filename, thumbnail_file, summary, categories, 
     }
 
     # Send the POST request
-    requests.post(url+"/wp-json/wp/v2/posts", headers=headers, json=data)
+    requests.post(url + "/wp-json/wp/v2/posts", headers=headers, json=data)
     send_to_wordpress.filename = filename
 
 
 @celery.task
 def delete_redundant_files(slug_video_filename, thumbnail_file, filename):
     """ Deletes all redundant files. """
-    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], slug_video_filename)) 
+    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], slug_video_filename))
     os.remove(os.path.join(app.config['UPLOAD_FOLDER'], thumbnail_file))
     delete_redundant_files.filename = filename
 
@@ -463,21 +525,22 @@ def add_meta_task(filename):
     """ Just a state task for logging in RabbitMQ. """
     logging.info("Add meta task finished")
     add_meta_task.filename = filename
-  
-    
+
+
 @celery.task
 def select_thumbnail_task(filename, filenames):
     """ Just a state task for logging in RabbitMQ. """
     logging.info("Select thumbnail task finished")
     select_categories_task.filename = filename
-    
-    
+
+
 @celery.task
 def select_categories_task(filename):
     """ Just a state task for logging in RabbitMQ. """
     logging.info("Select categories task finished")
     select_categories_task.filename = filename
- 
+
+
 @celery.task
 def abort_all(filename):
     UPLOAD_FOLDER = os.path.join(app.config['UPLOAD_FOLDER'])
@@ -489,17 +552,17 @@ def abort_all(filename):
             try:
                 os.remove(file_path)
                 logging.info(f'Deleted {file_path}')
-            except:
+            except BaseException:
                 logging.warn(f'Could not delete {file_name}')
-    if slug_output_filename:
-        file_path = os.path.join(UPLOAD_FOLDER, file_naslug_output_filenameme)
+        file_path = os.path.join(UPLOAD_FOLDER, slug_output_filename)
         os.remove(file_path)
 
-        
 
- 
 if __name__ == "__main__":
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(config['SERVER_HOST'], config['SERVER_HOST'])
-    app.run(host=config['SERVER_HOST'], port=config['SERVER_PORT'], debug=True, ssl_context=context)
-
+    app.run(
+        host=config['SERVER_HOST'],
+        port=config['SERVER_PORT'],
+        debug=True,
+        ssl_context=context)
