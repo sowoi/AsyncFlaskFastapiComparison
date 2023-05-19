@@ -148,3 +148,8 @@ If you encounter any issues or have suggestions for improvement, please create a
 
 
 FlaskCelery is licensed under the GNU General Public License v3.0. See [LICENSE](https://github.com/sowoi/flaskcelery/blob/main/LICENSE) for more information.
+
+
+
+![Linting](https://github.com/sowoi/flaskcelery//actions/workflows/python-lint.yml/badge.svg)
+[![CodeQL](https://github.com/sowoi/flaskcelery/actions/workflows/codeql.yml/badge.svg)

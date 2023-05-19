@@ -1,4 +1,5 @@
 from flask import Flask, request, send_from_directory, redirect, url_for, session, render_template, flash, jsonify
+from flask_wtf.csrf import CSRFProtect
 import os
 import subprocess
 import uuid
@@ -20,6 +21,7 @@ from collections import defaultdict
 from celery import Celery
 from celery.result import AsyncResult
 
+
 with open('config.json') as f:
     config = json.load(f)
 
@@ -29,10 +31,16 @@ app = Flask(__name__)
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'upload')
 THUMBNAIL_COUNT = config['THUMBNAIL_COUNT']
 
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'm4v'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = config['SECRET_KEY']
 app.config['CELERY_broker_url'] = config['CELERY_BROKER']
 app.config['result_backend'] = config['result_backend']
+csrf = CSRFProtect(app)
 
 celery = Celery(app.name, broker=app.config['CELERY_broker_url'])
 celery.conf.update(app.config)
@@ -60,7 +68,7 @@ def log_time(response):
 def upload():
     """Handle the file upload endpoint."""
     file = request.files['video']
-    if file:
+    if file and allowed_file(file.filename):
         filename = str(uuid.uuid4())
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         chunk_size = 4096
@@ -70,11 +78,10 @@ def upload():
                 if len(chunk) == 0:
                     break
                 f.write(chunk)
-        return jsonify({'redirect_url': url_for(
-            'ffmpeg_process', filename=filename)}), 200
-
+        return jsonify({'redirect_url': url_for('ffmpeg_process', filename=filename)}), 200
     else:
-        return {'error': 'No file uploaded'}, 400
+        return {'error': 'Invalid or unsupported file'}, 400
+    
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -273,6 +280,9 @@ def status_message(filename):
     background_tasks_finished_state = AsyncResult(
         background_tasks_finished_id, app=celery)
     if background_tasks_finished_state.status == 'SUCCESS':
+        # There may be a few background processes running that are still creating files.
+        # Therefore, we repeat this after 5 minutes again.
+        abort_all.apply_async(args=[filename], countdown=300) 
         return render_template(
             'send_to_wordpress.html', filename=filename, message="Video erfolgreich gesendet.")
     else:
@@ -372,7 +382,7 @@ def background_process_handler(filename, temp_video_filename, video_transform_ta
     video_transform_task_state = AsyncResult(
         video_transform_task_id, app=celery)
     video_transform_task_state.get()
-    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))  #
+    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     # rename temp video filename to slug video filename
     command = [
         'mv',
@@ -544,7 +554,6 @@ def select_categories_task(filename):
 @celery.task
 def abort_all(filename):
     UPLOAD_FOLDER = os.path.join(app.config['UPLOAD_FOLDER'])
-    slug_output_filename = session.get('slug_output_filename', None)
     file_list = os.listdir(UPLOAD_FOLDER)
     for file_name in file_list:
         if filename in file_name:
@@ -554,8 +563,7 @@ def abort_all(filename):
                 logging.info(f'Deleted {file_path}')
             except BaseException:
                 logging.warn(f'Could not delete {file_name}')
-        file_path = os.path.join(UPLOAD_FOLDER, slug_output_filename)
-        os.remove(file_path)
+
 
 
 if __name__ == "__main__":
@@ -564,5 +572,5 @@ if __name__ == "__main__":
     app.run(
         host=config['SERVER_HOST'],
         port=config['SERVER_PORT'],
-        debug=True,
+        debug=False,
         ssl_context=context)

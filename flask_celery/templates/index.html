@@ -24,6 +24,7 @@
             <a href="{{ flower_url }}"  class="btn btn-info  d-block mb-2">Flower API</a>
             <input type="file" name="video" class="form-control-file" id="video" style="display: none;">
             <label class="btn btn-primary" for="video">Durchsuchen</label>
+	    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="submit" class="btn btn-primary" value="Hochladen">         
          </div>
         </div>
