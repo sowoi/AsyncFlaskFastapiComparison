@@ -20,6 +20,8 @@ redis = "^4.5.5"
 flower = "^1.2.0"
 vulture = "^2.7"
 pytest = "^7.3.1"
+pillow = "^9.5.0"
+python-ffmpeg = "^2.0.4"
 
 
 [build-system]

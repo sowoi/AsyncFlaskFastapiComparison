@@ -58,10 +58,9 @@
     {% endfor %}
 </form>
 <div class="row align-items-center justify-content-center g-4">
-    {% for task_id, task_info in running_tasks.items() %}
-        {% set task_uuid = task_info['uuid'] %}
-        {% set task_name = task_info['name'] %}
-        {% set task_state = task_info['state'] %}
+    {% for task_uuid, task_info in running_tasks.items() %}
+        {% set task_state = task_info[0] %}
+        {% set task_name = task_info[1] %}
 
         {% if loop.index <= 12 %}
             {% if loop.index % 3 == 1 %}
@@ -89,9 +88,8 @@
 
                 <div class="card {{ status_class }}" style="width: auto; background-color: {{ color }}; margin-bottom: 10px;">
                     <ul class="list-group list-group-flush">
-                        <div class="card-header"><h4>Task ID: {{ task_id }}</h4></div>
-                        <li class="list-group-item"><p>UUID: {{ task_uuid }}</p></li>
-                        <li class="list-group-item"><p>Name: {{ task_name }}</p></li>
+                        <div class="card-header"><h4>Task ID: {{ task_uuid }}</h4></div>
+                        <li class="list-group-item"><p>Aufgabe: {{ task_name }}</p></li>
                         <li class="list-group-item"><p>Status: {{ task_state }}</p></li>
                     </ul>
                 </div>
