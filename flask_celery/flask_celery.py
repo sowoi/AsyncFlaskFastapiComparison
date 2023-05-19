@@ -33,8 +33,11 @@ THUMBNAIL_COUNT = config['THUMBNAIL_COUNT']
 
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'm4v'}
 
+
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit(
+        '.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = config['SECRET_KEY']
@@ -78,10 +81,10 @@ def upload():
                 if len(chunk) == 0:
                     break
                 f.write(chunk)
-        return jsonify({'redirect_url': url_for('ffmpeg_process', filename=filename)}), 200
+        return jsonify({'redirect_url': url_for(
+            'ffmpeg_process', filename=filename)}), 200
     else:
         return {'error': 'Invalid or unsupported file'}, 400
-    
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -282,7 +285,7 @@ def status_message(filename):
     if background_tasks_finished_state.status == 'SUCCESS':
         # There may be a few background processes running that are still creating files.
         # Therefore, we repeat this after 5 minutes again.
-        abort_all.apply_async(args=[filename], countdown=300) 
+        abort_all.apply_async(args=[filename], countdown=300)
         return render_template(
             'send_to_wordpress.html', filename=filename, message="Video erfolgreich gesendet.")
     else:
@@ -563,7 +566,6 @@ def abort_all(filename):
                 logging.info(f'Deleted {file_path}')
             except BaseException:
                 logging.warn(f'Could not delete {file_name}')
-
 
 
 if __name__ == "__main__":
