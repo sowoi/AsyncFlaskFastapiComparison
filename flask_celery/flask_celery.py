@@ -182,11 +182,11 @@ def create_thumbnail(filename):
 def choose_thumbnail(filename):
     """Reads the created thumbnails and renders them."""
     thumbnail_filenames = session.get(f'{filename}thumnbail_filenames', None)
-    if thumbnail_filenames == None:
-            pattern = f"thumbnail_.*{filename}.*\.png$"
-            files = os.listdir(app.config['UPLOAD_FOLDER'])
-            thumbnail_files_temp = [f for f in files if re.match(pattern, f)]
-            thumbnail_filenames = ",".join(thumbnail_files_temp)
+    if thumbnail_filenames is None:
+        pattern = f"thumbnail_.*{filename}.*\\.png$"
+        files = os.listdir(app.config['UPLOAD_FOLDER'])
+        thumbnail_files_temp = [f for f in files if re.match(pattern, f)]
+        thumbnail_filenames = ",".join(thumbnail_files_temp)
     logger.info(thumbnail_filenames)
     filenames = thumbnail_filenames.split(',')
     select_thumbnail_task.delay(filename, filenames)
@@ -237,7 +237,8 @@ def add_meta(filename):
         if video_date:
             session[f'{filename}video_date'] = video_date
         else:
-            session[f'{filename}video_date'] = datetime.today().strftime('%Y-%m-%d')
+            session[f'{filename}video_date'] = datetime.today().strftime(
+                '%Y-%m-%d')
         flash('Im nächsten Schritt gibst du die Kategorien an.')
         return render_template('transition.html', filename=filename, stepdescription="Schritt 5 von 6: Kategorien auwählen",
                                redirect_url=url_for('select_categories', filename=filename))
@@ -270,7 +271,8 @@ def select_categories(filename):
 def background_process(filename):
     """ Background processes handled be celary """
     temp_video_filename = session.get(f'{filename}temp_output_filename', None)
-    video_transform_task_id = session.get(f'{filename}video_transform_task_id', None)
+    video_transform_task_id = session.get(
+        f'{filename}video_transform_task_id', None)
     slug_video_filename = session.get(f'{filename}slug_video_name', None)
     thumbnail_file = session.get(f'{filename}thumbnail_filename', None)
     summary = session.get(f'{filename}summary', None)
