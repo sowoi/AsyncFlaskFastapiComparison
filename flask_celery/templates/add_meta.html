@@ -19,7 +19,9 @@
     </div>
     {% endif %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="submit" class="btn btn-primary" value="Submit">
+    <input type="submit" class="btn btn-success" value="Submit">
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Zurück zur Hauptseite</a>
+    <a href="{{ url_for('abort_process', filename=filename) }}"  class="btn btn-danger">Abbrechen</a>
 </div>
 </form>
 {% endblock content %} 

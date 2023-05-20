@@ -7,7 +7,7 @@ import random
 import base64
 import requests
 import ast
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from ftplib import FTP
 import ssl
 from unidecode import unidecode
@@ -20,7 +20,7 @@ from PIL import Image
 from collections import defaultdict
 from celery import Celery
 from celery.result import AsyncResult
-
+import redis
 
 with open('config.json') as f:
     config = json.load(f)
@@ -43,6 +43,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = config['SECRET_KEY']
 app.config['CELERY_broker_url'] = config['CELERY_BROKER']
 app.config['result_backend'] = config['result_backend']
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
+
 csrf = CSRFProtect(app)
 
 celery = Celery(app.name, broker=app.config['CELERY_broker_url'])
@@ -99,10 +106,10 @@ def index():
             return render_template('index.html', error_message=error_message)
         filename = str(uuid.uuid4())
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        session['video_filename'] = filename
+        session[f'{filename}video_filename'] = filename
         flash('Upload vollständig!')
         flash('Im nächsten Schritt wird umgewandelt!')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 2 von 7: Video umwandeln",
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 1 von 6: Video umwandeln",
                                redirect_url=url_for('ffmpeg_process', filename=filename))
     for filename in os.listdir(UPLOAD_FOLDER):
         match_temp = re.match(r"(.*)-temp\.mp4", filename)
@@ -136,13 +143,13 @@ def ffmpeg_process(filename):
     """Handle the ffmpeg process for video transformation and creation of thumbnails."""
     logging.info("FFMPEG_processing")
     temp_output_filename = filename + "-temp.mp4"
-    session['temp_output_filename'] = temp_output_filename
+    session[f'{filename}temp_output_filename'] = temp_output_filename
     result = transform_video.delay(filename, temp_output_filename)
     video_transform_task_id = result.id
-    session['video_transform_task_id'] = video_transform_task_id
+    session[f'{filename}video_transform_task_id'] = video_transform_task_id
     flash('Umwandlung wird im Hintergrund weitererledigt!')
     flash('Im nächsten Schritt werden die Thumbnails erstellt.')
-    return render_template('transition.html', filename=filename, stepdescription="Schritt 3 von 7: Thumbnails erstellen",
+    return render_template('transition.html', filename=filename, stepdescription="Schritt 2 von 6: Thumbnails erstellen",
                            redirect_url=url_for('create_thumbnail', filename=filename))
 
 
@@ -165,17 +172,23 @@ def create_thumbnail(filename):
         image.save(output_file, quality=quality)
         thumbnail_filenames.append(future.get())
 
-    session['thumnbail_filenames'] = ','.join(thumbnail_filenames)
+    session[f'{filename}thumnbail_filenames'] = ','.join(thumbnail_filenames)
     flash('Im nächsten Schritt wählst du ein Thumbnail aus.')
-    return render_template('transition.html', filename=filename, stepdescription="Schritt 4 von 7: Thumbnail auswählen",
+    return render_template('transition.html', filename=filename, stepdescription="Schritt 3 von 6: Thumbnail auswählen",
                            redirect_url=url_for('choose_thumbnail', filename=filename))
 
 
 @app.route('/choose_thumbnail/<filename>', methods=['GET', 'POST'])
 def choose_thumbnail(filename):
     """Reads the created thumbnails and renders them."""
-    thumnbail_filenames = session.get('thumnbail_filenames', None)
-    filenames = thumnbail_filenames.split(',')
+    thumbnail_filenames = session.get(f'{filename}thumnbail_filenames', None)
+    if thumbnail_filenames == None:
+            pattern = f"thumbnail_.*{filename}.*\.png$"
+            files = os.listdir(app.config['UPLOAD_FOLDER'])
+            thumbnail_files_temp = [f for f in files if re.match(pattern, f)]
+            thumbnail_filenames = ",".join(thumbnail_files_temp)
+    logger.info(thumbnail_filenames)
+    filenames = thumbnail_filenames.split(',')
     select_thumbnail_task.delay(filename, filenames)
 
     return render_template('choose_thumbnail.html',
@@ -186,7 +199,7 @@ def choose_thumbnail(filename):
 def select_thumbnail(filename):
     """Thumbnail selection. The rest will be deleted."""
     thumbnail_filename = request.args.get('thumbnail')
-    session['thumbnail_filename'] = thumbnail_filename
+    session[f'{filename}thumbnail_filename'] = thumbnail_filename
 
     # Delete other thumbnails
     for file in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -197,7 +210,7 @@ def select_thumbnail(filename):
 
     flash('Im nächsten Schritt gibst du Videobeschreibung und Videodatum an.')
     return render_template('transition.html', filename=filename,
-                           stepdescription="Schritt 5 von 7: Metadaten übermitteln", redirect_url=url_for('add_meta', filename=filename))
+                           stepdescription="Schritt 4 von 6: Metadaten übermitteln", redirect_url=url_for('add_meta', filename=filename))
 
 
 @app.route('/add_meta/<filename>', methods=['GET', 'POST'])
@@ -206,7 +219,7 @@ def add_meta(filename):
     today = date.today().strftime('%Y-%m-%d')
     if request.method == 'POST':
         summary = request.form.get('summary')
-        session['summary'] = summary
+        session[f'{filename}summary'] = summary
         video_date = request.form.get('date')
         if not summary:
             error_message = "Bitte gib  eine Videobeschreibung ein."
@@ -219,14 +232,14 @@ def add_meta(filename):
         summary = unidecode(summary)
         summary_slug = summary.lower().replace(' ', '-')
         slug_output_filename = f"{date_for_filename}-{summary_slug}.mp4"
-        session['slug_video_name'] = slug_output_filename
+        session[f'{filename}slug_video_name'] = slug_output_filename
 
         if video_date:
-            session['video_date'] = video_date
+            session[f'{filename}video_date'] = video_date
         else:
-            session['video_date'] = datetime.today().strftime('%Y-%m-%d')
+            session[f'{filename}video_date'] = datetime.today().strftime('%Y-%m-%d')
         flash('Im nächsten Schritt gibst du die Kategorien an.')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 6 von 7: Kategorien auwählen",
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 5 von 6: Kategorien auwählen",
                                redirect_url=url_for('select_categories', filename=filename))
     add_meta_task.delay(filename)
     return render_template('add_meta.html', today=today)
@@ -244,9 +257,9 @@ def select_categories(filename):
 
     if request.method == 'POST':
         selected_categories = request.form.getlist('categories')
-        session['selected_categories'] = selected_categories
+        session[f'{filename}selected_categories'] = selected_categories
         flash('Jetzt wird alles im Hintergrund erledigt.')
-        return render_template('transition.html', filename=filename, stepdescription="Schritt 7 von 7: An Wordpress übermitteln",
+        return render_template('transition.html', filename=filename, stepdescription="Schritt 6 von 6: An Wordpress übermitteln",
                                redirect_url=url_for('background_process', filename=filename))
     select_categories_task.delay(filename)
     return render_template('select_categories.html', categories=categories,
@@ -256,13 +269,13 @@ def select_categories(filename):
 @app.route('/background_process/<filename>')
 def background_process(filename):
     """ Background processes handled be celary """
-    temp_video_filename = session.get('temp_output_filename', None)
-    video_transform_task_id = session.get('video_transform_task_id', None)
-    slug_video_filename = session.get('slug_video_name', None)
-    thumbnail_file = session.get('thumbnail_filename', None)
-    summary = session.get('summary', None)
-    categories = session.get('selected_categories', None)
-    video_date = session.get('video_date', None)
+    temp_video_filename = session.get(f'{filename}temp_output_filename', None)
+    video_transform_task_id = session.get(f'{filename}video_transform_task_id', None)
+    slug_video_filename = session.get(f'{filename}slug_video_name', None)
+    thumbnail_file = session.get(f'{filename}thumbnail_filename', None)
+    summary = session.get(f'{filename}summary', None)
+    categories = session.get(f'{filename}selected_categories', None)
+    video_date = session.get(f'{filename}video_date', None)
     background_process_handler(
         filename,
         temp_video_filename,
@@ -428,7 +441,7 @@ def background_process_handler(filename, temp_video_filename, video_transform_ta
 
     result = background_tasks_finished.delay(filename)
     background_tasks_finished_id = result.id
-    session['background_tasks_finished_id'] = background_tasks_finished_id
+    session[f'{filename}background_tasks_finished_id'] = background_tasks_finished_id
 
     return True
 

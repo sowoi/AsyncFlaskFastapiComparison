@@ -10,7 +10,7 @@
             <div class="row justify g-2">
                 <div class="card" style="width: auto;">
                     <div class="card-body" style="width: auto;">
-                        <h5 class="card-title">Schritt 1 von 7: Upload der Videodatei</h5>
+                        <h5 class="card-title">Schritt 1 von 6: Upload der Videodatei</h5>
                         <h6 class="card-subtitle mb-2 text-muted">Bitte hab Geduld. Schließe oder aktualisiere dieses Fenster nicht bis der Upload fertig ist!</h6>
                         <div class="form-group">
                             <h6 class="card-subtitle mb-2">Wähle das Video, das hochgeladen und umgewandelt werden soll.</h6>
@@ -52,12 +52,20 @@
     </div>
     {% for uuid_name, file_types in uuid_dict.items() %}
     {% if file_types.temp > 0 and file_types.thumbs > 1 %}
-        <p>Weiter machen bei: <a href="/choose_thumbnail/{{ uuid_name }}">{{ uuid_name }}</a></p>
+        <p class="d-inline mr-2">Weiter machen bei: <a href="/choose_thumbnail/{{ uuid_name }}">{{ uuid_name }} (Thumbnail wählen)</a></p>
+        <p class="d-inline">oder <a href="/abort_process//{{ uuid_name }}">abbrechen</a></p>
     {% elif file_types.temp > 0 and file_types.thumbs == 1 %}
-        <p>Weiter machen bei:<a href="/add_meta/{{ uuid_name }}">{{ uuid_name }}</a></p>
-    {% endif %}
+        <p class="d-inline mr-2">Weiter machen bei: <a href="/add_meta/{{ uuid_name }}">{{ uuid_name }} (Videobeschreibung hinzufügen)</a></p>
+        <p class="d-inline">oder <a href="/abort_process//{{ uuid_name }}">abbrechen</a></p>
+        {% endif %}
     {% endfor %}
 </form>
+<br>
+<p>
+    <a class="btn btn-info  d-block mb-2" data-toggle="collapse" href="#help" role="button" aria-expanded="false" aria-controls="multiCollapse1">Hilfe anzeigen</a>
+    <a class="btn btn-info  d-block mb-2" data-toggle="collapse" href="#lastTasks" role="button" aria-expanded="false" aria-controls="multiCollapse2">Die letzten Aufgaben</a>
+</p>
+<div class="collapse" id="lastTasks">
 <div class="row align-items-center justify-content-center g-4">
     {% for task_uuid, task_info in running_tasks.items() %}
         {% set task_state = task_info[0] %}
@@ -99,6 +107,37 @@
         {% endif %}
     {% endfor %}
 </div>
+</div>
+<div class="collapse" id="help">
+    <h3>Die App besteht aus 6 Schritten:</h3>
+
+    <h4>Schritt 1: Video-Upload</h4>
+    <p>Sobald das Video hochgeladen wurde, wird es automatisch verarbeitet und Thumbnails werden generiert.</p>
+    
+    <h4>Schritt 2: Erstellung der Thumbnails</h4>
+    <p>Dieser Schritt erfolgt vollautomatisch.</p>
+    
+    <h4>Schritt 3: Wahl des Thumbnails</h4>
+    <p>Wähle das gewünschte Thumbnail, indem du darauf klickst.</p>
+    
+    <h4>Schritt 4: Beschreibung und Erstellungsdatum des Videos</h4>
+    <p>Basierend auf der Beschreibung und das Datum wird der Videonamen festgelegt.</p>
+    
+    <h4>Schritt 5: Wahl der WordPress-Kategorien</h4>
+    <p>Sollte es eine Kategorie mit Jahreszahl geben, wird sie automatisch vorausgewählt.</p>
+    
+    <h4>Schritt 6: Triggerung der Hintergrundprozesse</h3>
+    <p>Hier wird das Video per FTP hochgeladen und ein Beitrag per API-Anfrage an WordPress gesendet.</p>
+    <br>
+    <p>Du kannst jeden Schritt jederzeit abbrechen. Beachte jedoch, dass alle entstandenen Dateien gelöscht werden.</p>
+    <p>Du musst dann von vorne anfangen.</p>
+    <p>Nach dem vollständigen Upload kannst du das Fenster jederzeit schließen und später weitermachen.</p>
+    
+</div>
+
+
+
+
 
 <style>
     @keyframes pulse {
@@ -106,7 +145,7 @@
             background-color: #DC343B;
         }
         50% {
-            background-color: #e10d0d;
+            background-color: #2b0002;
         }
         100% {
             background-color: #DC343B;

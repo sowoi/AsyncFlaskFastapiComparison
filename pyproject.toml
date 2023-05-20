@@ -25,6 +25,7 @@ python-ffmpeg = "^2.0.4"
 flake8 = "^6.0.0"
 autopep8 = "^2.0.2"
 flask-wtf = "^1.1.1"
+uvicorn = "^0.22.0"
 
 
 [build-system]
