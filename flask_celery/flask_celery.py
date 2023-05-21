@@ -91,7 +91,9 @@ def upload():
         return jsonify({'redirect_url': url_for(
             'ffmpeg_process', filename=filename)}), 200
     else:
-        return {'error': 'Invalid or unsupported file'}, 400
+        error_message = "Nicht unterstütztes Dateiformat!"
+        return jsonify({'redirect_url': url_for('index'),
+                       'error_message': error_message}), 400
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -134,8 +136,9 @@ def index():
         flower_url = config['FLOWER_API_URL']
     else:
         running_tasks = None
+    error_message = request.args.get('error_message', None)
     return render_template('index.html', uuid_dict=uuid_dict,
-                           running_tasks=running_tasks, flower_url=flower_url)
+                           running_tasks=running_tasks, error_message=error_message, flower_url=flower_url)
 
 
 @app.route('/ffmpeg_process/<filename>', methods=['GET', 'POST'])
@@ -187,7 +190,7 @@ def choose_thumbnail(filename):
         files = os.listdir(app.config['UPLOAD_FOLDER'])
         thumbnail_files_temp = [f for f in files if re.match(pattern, f)]
         thumbnail_filenames = ",".join(thumbnail_files_temp)
-    logger.info(thumbnail_filenames)
+    logging.info(thumbnail_filenames)
     filenames = thumbnail_filenames.split(',')
     select_thumbnail_task.delay(filename, filenames)
 

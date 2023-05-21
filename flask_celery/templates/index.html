@@ -47,8 +47,6 @@
         </div>
         {% endif %}
         <br>
-
-
     </div>
     {% for uuid_name, file_types in uuid_dict.items() %}
     {% if file_types.temp > 0 and file_types.thumbs > 1 %}
@@ -161,48 +159,55 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
-$(document).ready(function(){
-    $('#upload_form').on('submit', function(e){
-        e.preventDefault();
-        $.ajax({
-            xhr: function() {
-                var xhr = new window.XMLHttpRequest();
-                xhr.upload.addEventListener("progress", function(evt) {
-                    if (evt.lengthComputable) {
-                        var percentComplete = ((evt.loaded / evt.total) * 100);
-                        $('#progress_bar > div').width(percentComplete + '%');
-                        if (percentComplete === 100) {
-                            $('#progress_bar').hide();
-                            $('#chunking_bar > div').addClass('pulse');
-                            $('#chunking_bar').show();
+    $(document).ready(function(){
+        $('#upload_form').on('submit', function(e){
+            e.preventDefault();
+            $.ajax({
+                xhr: function() {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", function(evt) {
+                        if (evt.lengthComputable) {
+                            var percentComplete = ((evt.loaded / evt.total) * 100);
+                            $('#progress_bar > div').width(percentComplete + '%');
+                            if (percentComplete === 100) {
+                                $('#progress_bar').hide();
+                                $('#chunking_bar > div').addClass('pulse');
+                                $('#chunking_bar').show();
+                            }
                         }
-                    }
-               }, false);
-               return xhr;
-            },
-            type: 'POST',
-            url: '/upload',
-            data: new FormData(this),
-            contentType: false,
-            cache: false,
-            processData:false,
-            beforeSend: function(){
-                $('#progress_bar').show();
-                $('#progress_bar > div').width('0%');
-            },
-            success: function(response){
-                 window.location.href = response.redirect_url;
-            }
+                   }, false);
+                   return xhr;
+                },
+                type: 'POST',
+                url: '/upload',
+                data: new FormData(this),
+                contentType: false,
+                cache: false,
+                processData:false,
+                beforeSend: function(){
+                    $('#progress_bar').show();
+                    $('#progress_bar > div').width('0%');
+                },
+                success: function(response){
+                     window.location.href = response.redirect_url;
+                },
+                error: function(response){
+                    var jsonResponse = JSON.parse(response.responseText);
+                    var redirectUrl = jsonResponse.redirect_url;
+                    var errorMessage = jsonResponse.error_message;
+                    window.location.href = redirectUrl + "?error_message=" + encodeURIComponent(errorMessage);
+                }
+            });
+        });
+    
+        document.getElementById('video').addEventListener('change', function(e) {
+            var fileName = e.target.files[0].name;
+            var label = document.querySelector("label[for='video']");
+            label.textContent = fileName;
+            label.style.backgroundColor = "green";
         });
     });
-
-    document.getElementById('video').addEventListener('change', function(e) {
-        var fileName = e.target.files[0].name;
-        var label = document.querySelector("label[for='video']");
-        label.textContent = fileName;
-        label.style.backgroundColor = "green";
-    });
-});
+    
 </script>
 
 
