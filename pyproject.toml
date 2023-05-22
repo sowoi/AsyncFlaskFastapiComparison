@@ -26,6 +26,7 @@ flake8 = "^6.0.0"
 autopep8 = "^2.0.2"
 flask-wtf = "^1.1.1"
 uvicorn = "^0.22.0"
+flask-compress = "^1.13"
 
 
 [build-system]

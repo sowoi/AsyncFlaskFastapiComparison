@@ -1,5 +1,6 @@
 from flask import Flask, request, send_from_directory, redirect, url_for, session, render_template, flash, jsonify
 from flask_wtf.csrf import CSRFProtect
+from flask_compress import Compress
 import os
 import subprocess
 import uuid
@@ -26,7 +27,7 @@ with open('config.json') as f:
     config = json.load(f)
 
 app = Flask(__name__)
-
+Compress(app)
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'upload')
 THUMBNAIL_COUNT = config['THUMBNAIL_COUNT']
